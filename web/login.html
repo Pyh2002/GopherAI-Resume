@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - GopherAI Resume</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #f3f4f6; display: grid; place-items: center; min-height: 100vh; }
+    .card { width: 380px; background: #fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.1); padding: 24px; }
+    h1 { margin: 0 0 16px; font-size: 22px; }
+    label { display: block; margin: 10px 0 6px; font-size: 14px; color: #374151; }
+    input { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; }
+    .actions { display: flex; gap: 10px; margin-top: 16px; }
+    button { flex: 1; border: 0; border-radius: 8px; padding: 10px 12px; color: #fff; cursor: pointer; background: #2563eb; }
+    button.secondary { background: #4b5563; }
+    .msg { margin-top: 12px; min-height: 20px; font-size: 13px; color: #111827; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Login</h1>
+    <label for="login">Login</label>
+    <input id="login" placeholder="username">
+    <label for="password">Password</label>
+    <input id="password" type="password" placeholder="password">
+
+    <div class="actions">
+      <button id="loginBtn" type="button">Login</button>
+      <button id="registerBtn" class="secondary" type="button">Register</button>
+    </div>
+    <div id="msg" class="msg"></div>
+  </main>
+
+  <script>
+    const msg = document.getElementById("msg");
+
+    function setMessage(text) {
+      msg.textContent = text;
+    }
+
+    async function doLogin() {
+      const username = document.getElementById("login").value.trim();
+      const password = document.getElementById("password").value.trim();
+      if (!username || !password) {
+        setMessage("Please input login and password.");
+        return;
+      }
+
+      setMessage("Logging in...");
+      try {
+        const res = await fetch("/api/v1/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (!res.ok || data.code !== 0) {
+          setMessage("Login failed: " + (data.message || "unknown error"));
+          return;
+        }
+        localStorage.setItem("token", data.data.token);
+        setMessage("Login success. Redirecting to /chat ...");
+        setTimeout(() => {
+          window.location.href = "/chat";
+        }, 600);
+      } catch (err) {
+        setMessage("Request error: " + err.message);
+      }
+    }
+
+    document.getElementById("loginBtn").addEventListener("click", doLogin);
+    document.getElementById("registerBtn").addEventListener("click", () => {
+      window.location.href = "/register";
+    });
+  </script>
+</body>
+</html>

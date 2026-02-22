@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat - GopherAI Resume</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #f3f4f6; }
+    .wrap { max-width: 900px; margin: 30px auto; padding: 0 16px; }
+    .card { background: #fff; border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.08); padding: 16px; margin-bottom: 16px; }
+    input, textarea, select { width: 100%; box-sizing: border-box; border: 1px solid #d1d5db; border-radius: 8px; padding: 10px; margin-top: 6px; }
+    textarea { min-height: 100px; resize: vertical; }
+    .row { display: flex; gap: 12px; }
+    .col { flex: 1; }
+    button { border: 0; border-radius: 8px; padding: 10px 14px; color: #fff; background: #2563eb; cursor: pointer; margin-right: 8px; margin-top: 10px; }
+    button.secondary { background: #4b5563; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; white-space: pre-wrap; background: #111827; color: #e5e7eb; border-radius: 8px; padding: 12px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h2>Chat Console (Step 3)</h2>
+      <div class="row">
+        <div class="col">
+          <label>Token</label>
+          <input id="token" placeholder="Bearer token from login/register">
+        </div>
+      </div>
+      <button id="loadTokenBtn" class="secondary" type="button">Load Token From localStorage</button>
+      <button id="meBtn" type="button">Who Am I</button>
+    </div>
+
+    <div class="card">
+      <h3>Session</h3>
+      <label>Title</label>
+      <input id="title" placeholder="e.g. Interview Demo Session">
+      <button id="createSessionBtn" type="button">Create Session</button>
+      <button id="listSessionBtn" class="secondary" type="button">List Sessions</button>
+    </div>
+
+    <div class="card">
+      <h3>Message</h3>
+      <label>Session ID</label>
+      <input id="sessionId" placeholder="session id">
+      <label>Content</label>
+      <textarea id="content" placeholder="type your message"></textarea>
+      <button id="sendBtn" type="button">Send Message</button>
+      <button id="historyBtn" class="secondary" type="button">Get History</button>
+    </div>
+
+    <div class="card">
+      <h3>Result</h3>
+      <div id="result" class="mono">Ready.</div>
+    </div>
+  </div>
+
+  <script>
+    const result = document.getElementById("result");
+
+    function setResult(data) {
+      if (typeof data === "string") {
+        result.textContent = data;
+        return;
+      }
+      result.textContent = JSON.stringify(data, null, 2);
+    }
+
+    function authHeaders() {
+      const token = document.getElementById("token").value.trim();
+      return {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      };
+    }
+
+    async function request(url, options) {
+      try {
+        const res = await fetch(url, options);
+        const data = await res.json();
+        setResult({ status: res.status, data });
+        return { res, data };
+      } catch (err) {
+        setResult("Request error: " + err.message);
+        return null;
+      }
+    }
+
+    document.getElementById("loadTokenBtn").addEventListener("click", () => {
+      const token = localStorage.getItem("token") || "";
+      document.getElementById("token").value = token;
+      setResult(token ? "Token loaded from localStorage." : "No token in localStorage.");
+    });
+
+    document.getElementById("meBtn").addEventListener("click", async () => {
+      await request("/api/v1/auth/me", { method: "GET", headers: authHeaders() });
+    });
+
+    document.getElementById("createSessionBtn").addEventListener("click", async () => {
+      const title = document.getElementById("title").value.trim();
+      await request("/api/v1/chat/sessions", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ title })
+      });
+    });
+
+    document.getElementById("listSessionBtn").addEventListener("click", async () => {
+      await request("/api/v1/chat/sessions", { method: "GET", headers: authHeaders() });
+    });
+
+    document.getElementById("sendBtn").addEventListener("click", async () => {
+      const sessionId = Number(document.getElementById("sessionId").value.trim());
+      const content = document.getElementById("content").value.trim();
+      await request("/api/v1/chat/messages", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ session_id: sessionId, content })
+      });
+    });
+
+    document.getElementById("historyBtn").addEventListener("click", async () => {
+      const sessionId = document.getElementById("sessionId").value.trim();
+      await request(`/api/v1/chat/history?session_id=${encodeURIComponent(sessionId)}`, {
+        method: "GET",
+        headers: authHeaders()
+      });
+    });
+  </script>
+</body>
+</html>

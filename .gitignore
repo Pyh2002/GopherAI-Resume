@@ -1,0 +1,27 @@
+# Go build outputs
+/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Local Go caches created during development
+/.cache/
+
+# Coverage and logs
+coverage.out
+*.log
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+
+# IDE / OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -1,0 +1,26 @@
+[app]
+name = "gopherai-resume"
+env = "dev"
+host = "0.0.0.0"
+port = 8080
+gin_mode = "debug"
+
+[auth]
+jwt_secret = "change-me-in-production"
+jwt_expire_minute = 120
+
+[mysql]
+host = "127.0.0.1"
+port = 3306
+user = "root"
+password = ""
+db = "gopherai_resume"
+params = "parseTime=true&loc=Local&charset=utf8mb4"
+
+[redis]
+addr = "127.0.0.1:6379"
+password = ""
+db = 0
+
+[rabbitmq]
+url = "amqp://guest:guest@127.0.0.1:5672/"
