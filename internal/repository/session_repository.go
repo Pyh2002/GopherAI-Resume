@@ -42,3 +42,10 @@ func (r *SessionRepository) GetByIDAndUserID(sessionID, userID uint) (*model.Ses
 	}
 	return &session, nil
 }
+
+func (r *SessionRepository) DeleteByIDAndUserID(sessionID, userID uint) error {
+	if err := r.db.Where("id = ? AND user_id = ?", sessionID, userID).Delete(&model.Session{}).Error; err != nil {
+		return fmt.Errorf("delete session failed: %w", err)
+	}
+	return nil
+}

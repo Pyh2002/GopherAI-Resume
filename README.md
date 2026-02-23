@@ -10,6 +10,7 @@ Step 1 bootstrap for backend engineering baseline.
 - Auth API: register/login/me with bcrypt + JWT.
 - Chat baseline API: session create/list + message send/history (non-streaming).
 - Simple web pages: `/`, `/login`, `/register`, `/chat`.
+- Redis cache-aside for chat history with dirty-marker protection.
 
 ## Quick start
 1. Ensure MySQL, Redis, RabbitMQ are running in WSL.

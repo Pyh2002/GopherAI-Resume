@@ -5,127 +5,442 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Chat - GopherAI Resume</title>
   <style>
-    body { margin: 0; font-family: Arial, sans-serif; background: #f3f4f6; }
-    .wrap { max-width: 900px; margin: 30px auto; padding: 0 16px; }
-    .card { background: #fff; border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.08); padding: 16px; margin-bottom: 16px; }
-    input, textarea, select { width: 100%; box-sizing: border-box; border: 1px solid #d1d5db; border-radius: 8px; padding: 10px; margin-top: 6px; }
-    textarea { min-height: 100px; resize: vertical; }
-    .row { display: flex; gap: 12px; }
-    .col { flex: 1; }
-    button { border: 0; border-radius: 8px; padding: 10px 14px; color: #fff; background: #2563eb; cursor: pointer; margin-right: 8px; margin-top: 10px; }
-    button.secondary { background: #4b5563; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; white-space: pre-wrap; background: #111827; color: #e5e7eb; border-radius: 8px; padding: 12px; }
+    body { margin: 0; font-family: Arial, sans-serif; background: #f3f4f6; color: #111827; }
+    .topbar { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 10px 14px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .topbar input { padding: 8px; border: 1px solid #d1d5db; border-radius: 8px; min-width: 260px; }
+    .btn { border: 0; border-radius: 8px; padding: 8px 12px; color: #fff; background: #2563eb; cursor: pointer; }
+    .btn.secondary { background: #4b5563; }
+    .container { display: grid; grid-template-columns: 280px 1fr; gap: 12px; max-width: 1200px; margin: 14px auto; padding: 0 12px; }
+    .panel { background: #fff; border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,.06); }
+    .panel h3 { margin: 0; padding: 12px 14px; border-bottom: 1px solid #f3f4f6; font-size: 15px; }
+    .sessions { padding: 10px; max-height: 520px; overflow: auto; }
+    .session-item { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; margin-bottom: 8px; cursor: pointer; }
+    .session-item.active { border-color: #2563eb; background: #eff6ff; }
+    .small { font-size: 12px; color: #6b7280; }
+    .chat-body { display: grid; grid-template-rows: 1fr auto auto; height: 820px; }
+    .messages { padding: 12px; overflow: auto; background: #f9fafb; }
+    .bubble { max-width: 78%; margin-bottom: 10px; padding: 10px; border-radius: 10px; white-space: pre-wrap; line-height: 1.35; }
+    .bubble.user { margin-left: auto; background: #2563eb; color: #fff; }
+    .bubble.assistant { margin-right: auto; background: #fff; border: 1px solid #e5e7eb; }
+    .bubble.pending { opacity: 0.65; border-style: dashed; }
+    .composer { padding: 10px; border-top: 1px solid #f3f4f6; }
+    .composer textarea { width: 100%; box-sizing: border-box; min-height: 90px; border: 1px solid #d1d5db; border-radius: 8px; padding: 10px; resize: vertical; }
+    .composer-actions { margin-top: 8px; display: flex; gap: 8px; align-items: center; }
+    .llm-config { padding: 10px; border-top: 1px solid #f3f4f6; display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 8px; }
+    .llm-config input { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #d1d5db; border-radius: 8px; }
+    .result-box { margin-top: 12px; grid-column: 1 / -1; background: #111827; color: #e5e7eb; border-radius: 8px; padding: 12px; font-size: 12px; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; height: 300px; overflow: auto; box-sizing: border-box; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <h2>Chat Console (Step 3)</h2>
-      <div class="row">
-        <div class="col">
-          <label>Token</label>
-          <input id="token" placeholder="Bearer token from login/register">
+  <div class="topbar">
+    <input id="token" placeholder="Bearer token">
+    <button class="btn secondary" id="loadTokenBtn" type="button">Load Token</button>
+    <button class="btn" id="whoAmIBtn" type="button">Who Am I</button>
+    <button class="btn secondary" id="logoutBtn" type="button">Logout</button>
+    <span class="small">Default model: qwen3-max (server config)</span>
+  </div>
+
+  <div class="container">
+    <aside class="panel">
+      <h3>Conversations</h3>
+      <div style="padding:10px;">
+        <input id="newTitle" placeholder="new session title" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #d1d5db;border-radius:8px;">
+        <button class="btn" id="createSessionBtn" type="button" style="margin-top:8px;width:100%;">Create Session</button>
+        <button class="btn secondary" id="deleteSessionBtn" type="button" style="margin-top:8px;width:100%;">Delete Active Session</button>
+        <button class="btn secondary" id="refreshSessionBtn" type="button" style="margin-top:8px;width:100%;">Refresh</button>
+      </div>
+      <div class="sessions" id="sessionList"></div>
+    </aside>
+
+    <section class="panel chat-body">
+      <h3 id="chatTitle">Chat Window</h3>
+      <div class="messages" id="messages"></div>
+      <div class="composer">
+        <textarea id="messageInput" placeholder="Type your message..."></textarea>
+        <div class="composer-actions">
+          <button class="btn" id="sendBtn" type="button">Send</button>
+          <button class="btn secondary" id="streamBtn" type="button">Stream Send</button>
+          <span class="small" id="activeSessionHint">No session selected</span>
         </div>
       </div>
-      <button id="loadTokenBtn" class="secondary" type="button">Load Token From localStorage</button>
-      <button id="meBtn" type="button">Who Am I</button>
-    </div>
-
-    <div class="card">
-      <h3>Session</h3>
-      <label>Title</label>
-      <input id="title" placeholder="e.g. Interview Demo Session">
-      <button id="createSessionBtn" type="button">Create Session</button>
-      <button id="listSessionBtn" class="secondary" type="button">List Sessions</button>
-    </div>
-
-    <div class="card">
-      <h3>Message</h3>
-      <label>Session ID</label>
-      <input id="sessionId" placeholder="session id">
-      <label>Content</label>
-      <textarea id="content" placeholder="type your message"></textarea>
-      <button id="sendBtn" type="button">Send Message</button>
-      <button id="historyBtn" class="secondary" type="button">Get History</button>
-    </div>
-
-    <div class="card">
-      <h3>Result</h3>
-      <div id="result" class="mono">Ready.</div>
-    </div>
+      <div class="llm-config">
+        <input id="llmBaseUrl" placeholder="Override base_url (optional)">
+        <input id="llmModel" placeholder="Override model (optional)">
+        <input id="llmApiKey" type="password" placeholder="Override api_key (optional)">
+        <div class="result-box" id="resultBox">Ready.</div>
+      </div>
+    </section>
   </div>
 
   <script>
-    const result = document.getElementById("result");
+    const tokenInput = document.getElementById("token");
+    const sessionListEl = document.getElementById("sessionList");
+    const messagesEl = document.getElementById("messages");
+    const resultBox = document.getElementById("resultBox");
+    const chatTitleEl = document.getElementById("chatTitle");
+    const activeSessionHint = document.getElementById("activeSessionHint");
+
+    let activeSessionId = null;
+    let sessions = [];
+    let currentMessages = [];
 
     function setResult(data) {
       if (typeof data === "string") {
-        result.textContent = data;
+        resultBox.textContent = data;
         return;
       }
-      result.textContent = JSON.stringify(data, null, 2);
+      resultBox.textContent = JSON.stringify(data, null, 2);
     }
 
     function authHeaders() {
-      const token = document.getElementById("token").value.trim();
       return {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
+        "Authorization": `Bearer ${tokenInput.value.trim()}`
       };
     }
 
+    function llmPayload() {
+      return {
+        base_url: document.getElementById("llmBaseUrl").value.trim(),
+        model: document.getElementById("llmModel").value.trim(),
+        api_key: document.getElementById("llmApiKey").value.trim()
+      };
+    }
+
+    function renderSessions() {
+      sessionListEl.innerHTML = "";
+      for (const s of sessions) {
+        const item = document.createElement("div");
+        item.className = "session-item" + (s.id === activeSessionId ? " active" : "");
+        item.innerHTML = `<div><strong>#${s.id}</strong> ${s.title}</div><div class="small">user_id=${s.user_id}</div>`;
+        item.addEventListener("click", () => selectSession(s.id));
+        sessionListEl.appendChild(item);
+      }
+      if (!sessions.length) {
+        sessionListEl.innerHTML = `<div class="small">No sessions yet.</div>`;
+      }
+    }
+
+    function renderMessages(list) {
+      currentMessages = Array.isArray(list) ? [...list] : [];
+      messagesEl.innerHTML = "";
+      for (const msg of currentMessages) {
+        const b = document.createElement("div");
+        b.className = "bubble " + (msg.role === "user" ? "user" : "assistant");
+        if (msg.__pending || msg.__typing) {
+          b.className += " pending";
+        }
+        b.textContent = msg.content;
+        messagesEl.appendChild(b);
+      }
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function appendMessages(items) {
+      if (!Array.isArray(items) || !items.length) return;
+      currentMessages = [...currentMessages, ...items];
+      renderMessages(currentMessages);
+    }
+
+    function appendOrReplaceStreamingAssistant(content) {
+      const draftFlag = "__stream_draft__";
+      const draftIdx = currentMessages.findIndex(m => m[draftFlag]);
+      if (draftIdx >= 0) {
+        currentMessages[draftIdx] = { ...currentMessages[draftIdx], content };
+      } else {
+        currentMessages = [...currentMessages, { role: "assistant", content, [draftFlag]: true }];
+      }
+      renderMessages(currentMessages);
+    }
+
+    function finalizeStreamingAssistant() {
+      currentMessages = currentMessages.map(m => {
+        if (m.__stream_draft__) {
+          const { __stream_draft__, ...rest } = m;
+          return rest;
+        }
+        return m;
+      });
+      renderMessages(currentMessages);
+    }
+
+    async function waitForHistorySync(expectedTexts, maxAttempts = 6, intervalMs = 350) {
+      if (!activeSessionId) return false;
+      for (let i = 0; i < maxAttempts; i++) {
+        await new Promise(r => setTimeout(r, intervalMs));
+        const out = await request(`/api/v1/chat/history?session_id=${encodeURIComponent(activeSessionId)}&limit=100`, {
+          method: "GET",
+          headers: authHeaders()
+        });
+        if (out.status !== 200 || out.data.code !== 0) {
+          continue;
+        }
+        const history = out.data.data || [];
+        const hit = expectedTexts.every(text => history.some(h => h.content === text));
+        if (hit) {
+          renderMessages(history);
+          return true;
+        }
+      }
+      return false;
+    }
+
     async function request(url, options) {
+      const res = await fetch(url, options);
+      const data = await res.json();
+      return { status: res.status, data };
+    }
+
+    async function loadSessions() {
       try {
-        const res = await fetch(url, options);
-        const data = await res.json();
-        setResult({ status: res.status, data });
-        return { res, data };
+        const out = await request("/api/v1/chat/sessions", { method: "GET", headers: authHeaders() });
+        if (out.status !== 200 || out.data.code !== 0) {
+          setResult(out);
+          return;
+        }
+        sessions = out.data.data || [];
+        renderSessions();
+        if (activeSessionId === null && sessions.length) {
+          await selectSession(sessions[0].id);
+        }
       } catch (err) {
-        setResult("Request error: " + err.message);
-        return null;
+        setResult("Load sessions error: " + err.message);
+      }
+    }
+
+    async function selectSession(sessionId) {
+      activeSessionId = sessionId;
+      const s = sessions.find(x => x.id === sessionId);
+      chatTitleEl.textContent = `Chat Window - #${sessionId} ${s ? s.title : ""}`;
+      activeSessionHint.textContent = `Active session: ${sessionId}`;
+      renderSessions();
+      await loadHistory();
+    }
+
+    async function loadHistory() {
+      if (!activeSessionId) return;
+      try {
+        const out = await request(`/api/v1/chat/history?session_id=${encodeURIComponent(activeSessionId)}&limit=100`, {
+          method: "GET",
+          headers: authHeaders()
+        });
+        if (out.status !== 200 || out.data.code !== 0) {
+          setResult(out);
+          return;
+        }
+        renderMessages(out.data.data || []);
+      } catch (err) {
+        setResult("Load history error: " + err.message);
+      }
+    }
+
+    async function createSession() {
+      const title = document.getElementById("newTitle").value.trim();
+      try {
+        const out = await request("/api/v1/chat/sessions", {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({ title })
+        });
+        setResult({ action: "create_session", response: out });
+        if (out.status === 200 && out.data.code === 0) {
+          await loadSessions();
+          if (out.data.data && out.data.data.id) {
+            await selectSession(out.data.data.id);
+          }
+        }
+      } catch (err) {
+        setResult("Create session error: " + err.message);
+      }
+    }
+
+    async function deleteActiveSession() {
+      if (!activeSessionId) {
+        setResult("No active session to delete.");
+        return;
+      }
+      const deletingId = activeSessionId;
+      try {
+        const out = await request(`/api/v1/chat/sessions/${encodeURIComponent(deletingId)}`, {
+          method: "DELETE",
+          headers: authHeaders()
+        });
+        setResult({ action: "delete_session", response: out });
+        if (out.status === 200 && out.data.code === 0) {
+          currentMessages = [];
+          renderMessages([]);
+          activeSessionId = null;
+          chatTitleEl.textContent = "Chat Window";
+          activeSessionHint.textContent = "No session selected";
+          await loadSessions();
+        }
+      } catch (err) {
+        setResult("Delete session error: " + err.message);
+      }
+    }
+
+    async function sendMessage() {
+      if (!activeSessionId) {
+        setResult("Please select/create a session first.");
+        return;
+      }
+      const content = document.getElementById("messageInput").value.trim();
+      if (!content) {
+        setResult("Message is empty.");
+        return;
+      }
+      const payload = { session_id: activeSessionId, content, llm: llmPayload() };
+      const pendingUser = { role: "user", content, __pending: true };
+      const pendingAssistant = { role: "assistant", content: "typing...", __typing: true };
+      currentMessages = [...currentMessages, pendingUser, pendingAssistant];
+      renderMessages(currentMessages);
+      document.getElementById("messageInput").value = "";
+      try {
+        const out = await request("/api/v1/chat/messages", {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify(payload)
+        });
+        setResult({
+          action: "send_message",
+          backend_request_payload: payload,
+          llm_request_sent_by_backend: out.data?.data?.llm_request || null,
+          response: out
+        });
+        if (out.status === 200 && out.data.code === 0) {
+          const optimistic = out.data.data.messages || [];
+          // Replace pending placeholders with actual response.
+          currentMessages = currentMessages.filter(m => !m.__pending && !m.__typing);
+          appendMessages(optimistic);
+          const expectedTexts = optimistic.map(m => m.content).filter(Boolean);
+          await waitForHistorySync(expectedTexts);
+        } else {
+          // On failure, remove typing placeholder but keep the user message visible.
+          currentMessages = currentMessages.map(m => {
+            if (m === pendingUser) return { role: "user", content };
+            if (m === pendingAssistant) return { role: "assistant", content: "failed to get response" };
+            return m;
+          });
+          renderMessages(currentMessages);
+        }
+      } catch (err) {
+        currentMessages = currentMessages.map(m => {
+          if (m === pendingUser) return { role: "user", content };
+          if (m === pendingAssistant) return { role: "assistant", content: "request error" };
+          return m;
+        });
+        renderMessages(currentMessages);
+        setResult("Send message error: " + err.message);
+      }
+    }
+
+    async function streamMessage() {
+      if (!activeSessionId) {
+        setResult("Please select/create a session first.");
+        return;
+      }
+      const content = document.getElementById("messageInput").value.trim();
+      if (!content) {
+        setResult("Message is empty.");
+        return;
+      }
+
+      const payload = { session_id: activeSessionId, content, llm: llmPayload() };
+      const pendingUser = { role: "user", content, __pending: true };
+      const pendingAssistant = { role: "assistant", content: "typing...", __typing: true };
+      currentMessages = [...currentMessages, pendingUser, pendingAssistant];
+      renderMessages(currentMessages);
+      document.getElementById("messageInput").value = "";
+      setResult({ action: "stream_message", backend_request_payload: payload, note: "SSE started" });
+
+      try {
+        const res = await fetch("/api/v1/chat/stream", {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok || !res.body) {
+          const text = await res.text();
+          setResult({ action: "stream_message", status: res.status, text });
+          return;
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let partial = "";
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const events = buffer.split("\n\n");
+          buffer = events.pop() || "";
+          for (const e of events) {
+            let ev = "message";
+            let data = "";
+            for (const line of e.split("\n")) {
+              if (line.startsWith("event:")) ev = line.slice(6).trim();
+              if (line.startsWith("data:")) data += line.slice(5);
+            }
+            if (ev === "error") {
+              currentMessages = currentMessages.map(m => {
+                if (m === pendingUser) return { role: "user", content };
+                if (m.__stream_draft__ || m === pendingAssistant) return { role: "assistant", content: "stream error" };
+                return m;
+              });
+              renderMessages(currentMessages);
+              setResult({ action: "stream_message", event: "error", data });
+              return;
+            }
+            if (ev === "done") {
+              currentMessages = currentMessages.map(m => {
+                if (m === pendingUser) return { role: "user", content };
+                return m;
+              });
+              finalizeStreamingAssistant();
+              await waitForHistorySync([content, partial]);
+              setResult({ action: "stream_message", event: "done", full: partial });
+              return;
+            }
+            partial += data;
+            appendOrReplaceStreamingAssistant(partial);
+          }
+        }
+      } catch (err) {
+        setResult("Stream message error: " + err.message);
       }
     }
 
     document.getElementById("loadTokenBtn").addEventListener("click", () => {
       const token = localStorage.getItem("token") || "";
-      document.getElementById("token").value = token;
-      setResult(token ? "Token loaded from localStorage." : "No token in localStorage.");
+      tokenInput.value = token;
+      setResult(token ? "Token loaded." : "No token in localStorage.");
     });
 
-    document.getElementById("meBtn").addEventListener("click", async () => {
-      await request("/api/v1/auth/me", { method: "GET", headers: authHeaders() });
+    document.getElementById("whoAmIBtn").addEventListener("click", async () => {
+      try {
+        const out = await request("/api/v1/auth/me", { method: "GET", headers: authHeaders() });
+        setResult({ action: "whoami", response: out });
+      } catch (err) {
+        setResult("WhoAmI error: " + err.message);
+      }
+    });
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      localStorage.removeItem("token");
+      tokenInput.value = "";
+      window.location.href = "/login";
     });
 
-    document.getElementById("createSessionBtn").addEventListener("click", async () => {
-      const title = document.getElementById("title").value.trim();
-      await request("/api/v1/chat/sessions", {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({ title })
-      });
-    });
+    document.getElementById("createSessionBtn").addEventListener("click", createSession);
+    document.getElementById("deleteSessionBtn").addEventListener("click", deleteActiveSession);
+    document.getElementById("refreshSessionBtn").addEventListener("click", loadSessions);
+    document.getElementById("sendBtn").addEventListener("click", sendMessage);
+    document.getElementById("streamBtn").addEventListener("click", streamMessage);
 
-    document.getElementById("listSessionBtn").addEventListener("click", async () => {
-      await request("/api/v1/chat/sessions", { method: "GET", headers: authHeaders() });
-    });
-
-    document.getElementById("sendBtn").addEventListener("click", async () => {
-      const sessionId = Number(document.getElementById("sessionId").value.trim());
-      const content = document.getElementById("content").value.trim();
-      await request("/api/v1/chat/messages", {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({ session_id: sessionId, content })
-      });
-    });
-
-    document.getElementById("historyBtn").addEventListener("click", async () => {
-      const sessionId = document.getElementById("sessionId").value.trim();
-      await request(`/api/v1/chat/history?session_id=${encodeURIComponent(sessionId)}`, {
-        method: "GET",
-        headers: authHeaders()
-      });
-    });
+    (async function init() {
+      tokenInput.value = localStorage.getItem("token") || "";
+      await loadSessions();
+    })();
   </script>
 </body>
 </html>

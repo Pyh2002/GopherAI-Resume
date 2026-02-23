@@ -9,6 +9,12 @@ gin_mode = "debug"
 jwt_secret = "change-me-in-production"
 jwt_expire_minute = 120
 
+[llm]
+base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+api_key = "sk-f35af11a2d4a4e819e1137bff10e36d3"
+model = "qwen3-max"
+max_context_message = 20
+
 [mysql]
 host = "127.0.0.1"
 port = 3306
@@ -21,6 +27,9 @@ params = "parseTime=true&loc=Local&charset=utf8mb4"
 addr = "127.0.0.1:6379"
 password = ""
 db = 0
+history_ttl_seconds = 60
+history_dirty_ttl_seconds = 5
 
 [rabbitmq]
 url = "amqp://guest:guest@127.0.0.1:5672/"
+message_persist_queue = "chat.message.persist"

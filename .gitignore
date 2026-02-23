@@ -10,6 +10,9 @@
 
 # Local Go caches created during development
 /.cache/
+/
+# Messages
+/Messages/
 
 # Coverage and logs
 coverage.out

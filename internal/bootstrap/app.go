@@ -14,13 +14,16 @@ import (
 	mysqlClient "gopherai-resume/internal/platform/mysql"
 	rabbitmqClient "gopherai-resume/internal/platform/rabbitmq"
 	redisClient "gopherai-resume/internal/platform/redis"
+	"gopherai-resume/internal/repository"
+	"gopherai-resume/internal/worker"
 )
 
 type App struct {
-	Config *config.Config
-	MySQL  *gorm.DB
-	Redis  *redis.Client
-	MQConn *amqp.Connection
+	Config        *config.Config
+	MySQL         *gorm.DB
+	Redis         *redis.Client
+	MQConn        *amqp.Connection
+	MessageWorker *worker.MessagePersistWorker
 
 	StartedAt time.Time
 }
@@ -49,12 +52,19 @@ func New(ctx context.Context) (*App, error) {
 		return nil, err
 	}
 
+	messageRepo := repository.NewMessageRepository(mysqlDB)
+	messageWorker := worker.NewMessagePersistWorker(mqConn, messageRepo, cfg.RabbitMQ.MessagePersistQueue)
+	if err := messageWorker.Start(ctx); err != nil {
+		return nil, fmt.Errorf("start message worker failed: %w", err)
+	}
+
 	return &App{
-		Config:    cfg,
-		MySQL:     mysqlDB,
-		Redis:     redisCli,
-		MQConn:    mqConn,
-		StartedAt: time.Now(),
+		Config:        cfg,
+		MySQL:         mysqlDB,
+		Redis:         redisCli,
+		MQConn:        mqConn,
+		MessageWorker: messageWorker,
+		StartedAt:     time.Now(),
 	}, nil
 }
 
@@ -64,6 +74,9 @@ func (a *App) Close() error {
 		if err := a.Redis.Close(); err != nil {
 			closeErr = err
 		}
+	}
+	if a.MessageWorker != nil {
+		a.MessageWorker.Close()
 	}
 	if a.MQConn != nil {
 		if err := a.MQConn.Close(); err != nil {

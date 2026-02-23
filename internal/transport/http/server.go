@@ -5,8 +5,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"gopherai-resume/internal/ai"
 	appsvc "gopherai-resume/internal/app"
 	"gopherai-resume/internal/bootstrap"
+	"gopherai-resume/internal/cache"
+	rabbitmqPlatform "gopherai-resume/internal/platform/rabbitmq"
 	"gopherai-resume/internal/repository"
 	"gopherai-resume/internal/transport/http/handler"
 	"gopherai-resume/internal/transport/http/middleware"
@@ -32,7 +35,27 @@ func NewRouter(app *bootstrap.App) *gin.Engine {
 		app.Config.Auth.JWTSecret,
 		time.Duration(app.Config.Auth.JWTExpireMinute)*time.Minute,
 	)
-	chatService := appsvc.NewChatService(sessionRepo, messageRepo)
+	messagePublisher := rabbitmqPlatform.NewMessagePublisher(
+		app.MQConn,
+		app.Config.RabbitMQ.MessagePersistQueue,
+	)
+	historyCache := cache.NewHistoryCache(
+		app.Redis,
+		time.Duration(app.Config.Redis.HistoryTTLSeconds)*time.Second,
+		time.Duration(app.Config.Redis.HistoryDirtyTTLSeconds)*time.Second,
+	)
+	chatService := appsvc.NewChatService(
+		sessionRepo,
+		messageRepo,
+		messagePublisher,
+		historyCache,
+		ai.ChatConfig{
+			BaseURL: app.Config.LLM.BaseURL,
+			APIKey:  app.Config.LLM.APIKey,
+			Model:   app.Config.LLM.Model,
+		},
+		app.Config.LLM.MaxContextMessage,
+	)
 	authHandler := handler.NewAuthHandler(authService)
 	chatHandler := handler.NewChatHandler(chatService)
 
@@ -46,7 +69,9 @@ func NewRouter(app *bootstrap.App) *gin.Engine {
 	chatGroup.Use(middleware.AuthJWT(app.Config.Auth.JWTSecret))
 	chatGroup.POST("/sessions", chatHandler.CreateSession)
 	chatGroup.GET("/sessions", chatHandler.ListSessions)
+	chatGroup.DELETE("/sessions/:id", chatHandler.DeleteSession)
 	chatGroup.POST("/messages", chatHandler.SendMessage)
+	chatGroup.POST("/stream", chatHandler.StreamMessage)
 	chatGroup.GET("/history", chatHandler.GetHistory)
 
 	return router
