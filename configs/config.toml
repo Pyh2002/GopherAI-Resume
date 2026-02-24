@@ -28,7 +28,7 @@ params = "parseTime=true&loc=Local&charset=utf8mb4"
 addr = "127.0.0.1:6379"
 password = ""
 db = 0
-history_ttl_seconds = 60
+history_ttl_seconds = 300
 history_dirty_ttl_seconds = 5
 
 [rabbitmq]
