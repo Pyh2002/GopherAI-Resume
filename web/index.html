@@ -66,7 +66,7 @@
     <div class="actions">
       <button id="registerBtn" type="button">Register</button>
       <button id="loginBtn" class="secondary" type="button">Login</button>
-      <button id="chatBtn" type="button">Chat</button>
+      <button id="appBtn" type="button">Open App</button>
     </div>
     <div class="hint">
       API: /api/v1/auth/register and /api/v1/auth/login
@@ -76,7 +76,7 @@
   <script>
     const registerBtn = document.getElementById("registerBtn");
     const loginBtn = document.getElementById("loginBtn");
-    const chatBtn = document.getElementById("chatBtn");
+    const appBtn = document.getElementById("appBtn");
 
     registerBtn.addEventListener("click", () => {
       window.location.href = "/register";
@@ -86,8 +86,8 @@
       window.location.href = "/login";
     });
 
-    chatBtn.addEventListener("click", () => {
-      window.location.href = "/chat";
+    appBtn.addEventListener("click", () => {
+      window.location.href = "/app";
     });
   </script>
 </body>

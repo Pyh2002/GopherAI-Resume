@@ -38,7 +38,10 @@ func New(ctx context.Context) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := mysqlDB.AutoMigrate(&model.User{}, &model.Session{}, &model.Message{}); err != nil {
+	if err := mysqlDB.AutoMigrate(
+		&model.User{}, &model.Session{}, &model.Message{},
+		&model.RAGSession{}, &model.RAGDocument{}, &model.RAGChunk{},
+	); err != nil {
 		return nil, fmt.Errorf("auto migrate tables failed: %w", err)
 	}
 

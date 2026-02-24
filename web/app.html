@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>App - GopherAI Resume</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #f3f4f6; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .hub { max-width: 560px; padding: 24px; text-align: center; }
+    h1 { margin: 0 0 8px; font-size: 24px; color: #111827; }
+    .sub { margin: 0 0 24px; font-size: 14px; color: #6b7280; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; justify-content: center; }
+    .card { background: #fff; border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.06); padding: 24px; text-decoration: none; color: #111827; border: 1px solid #e5e7eb; transition: border-color .15s, box-shadow .15s; }
+    .card:hover { border-color: #2563eb; box-shadow: 0 6px 20px rgba(37,99,235,.12); }
+    .card h2 { margin: 0 0 8px; font-size: 18px; }
+    .card p { margin: 0; font-size: 13px; color: #6b7280; }
+    .loading { color: #6b7280; }
+    .err { color: #dc2626; margin-top: 12px; }
+    .logout { position: absolute; top: 14px; right: 14px; border: 0; border-radius: 8px; padding: 8px 12px; background: #4b5563; color: #fff; cursor: pointer; font-size: 13px; }
+    .logout:hover { background: #374151; }
+  </style>
+</head>
+<body>
+  <button class="logout" id="logoutBtn" type="button">Logout</button>
+  <main class="hub">
+    <h1>GopherAI Resume</h1>
+    <p class="sub">Choose a feature</p>
+    <div id="content">
+      <p class="loading">Checking auth...</p>
+    </div>
+    <div id="cards" class="cards" style="display: none;">
+      <a href="/chat" class="card">
+        <h2>Chat</h2>
+        <p>Multi-turn AI chat with sessions</p>
+      </a>
+      <a href="/rag" class="card">
+        <h2>RAG</h2>
+        <p>Ask over your documents</p>
+      </a>
+      <a href="/vision" class="card">
+        <h2>Image Recognition</h2>
+        <p>Classify images with ONNX</p>
+      </a>
+    </div>
+    <p id="err" class="err" style="display: none;"></p>
+  </main>
+
+  <script>
+    const content = document.getElementById("content");
+    const cards = document.getElementById("cards");
+    const errEl = document.getElementById("err");
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      window.location.href = "/login";
+    } else {
+      fetch("/api/v1/auth/me", {
+        method: "GET",
+        headers: { "Authorization": "Bearer " + token }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.code === 0) {
+            content.style.display = "none";
+            cards.style.display = "grid";
+          } else {
+            content.innerHTML = "Not authenticated.";
+            errEl.textContent = data.message || "Invalid token";
+            errEl.style.display = "block";
+            setTimeout(() => { window.location.href = "/login"; }, 1500);
+          }
+        })
+        .catch(() => {
+          content.innerHTML = "Request failed.";
+          errEl.textContent = "Redirecting to login...";
+          errEl.style.display = "block";
+          setTimeout(() => { window.location.href = "/login"; }, 1500);
+        });
+    }
+
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      localStorage.removeItem("token");
+      window.location.href = "/login";
+    });
+  </script>
+</body>
+</html>

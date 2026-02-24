@@ -57,6 +57,7 @@ type LLMConfig struct {
 	APIKey            string `toml:"api_key"`
 	Model             string `toml:"model"`
 	MaxContextMessage int    `toml:"max_context_message"`
+	EmbeddingModel    string `toml:"embedding_model"`
 }
 
 func Load() (*Config, error) {
@@ -106,6 +107,7 @@ func defaultConfig() *Config {
 			APIKey:            "sk-f35af11a2d4a4e819e1137bff10e36d3",
 			Model:             "qwen3-max",
 			MaxContextMessage: 20,
+			EmbeddingModel:    "text-embedding-v3",
 		},
 		MySQL: MySQLConfig{
 			Host:     "127.0.0.1",
@@ -141,6 +143,7 @@ func overrideByEnv(cfg *Config) {
 	cfg.LLM.APIKey = getEnv("LLM_API_KEY", cfg.LLM.APIKey)
 	cfg.LLM.Model = getEnv("LLM_MODEL", cfg.LLM.Model)
 	cfg.LLM.MaxContextMessage = getEnvAsInt("LLM_MAX_CONTEXT_MESSAGE", cfg.LLM.MaxContextMessage)
+	cfg.LLM.EmbeddingModel = getEnv("LLM_EMBEDDING_MODEL", cfg.LLM.EmbeddingModel)
 
 	cfg.MySQL.Host = getEnv("MYSQL_HOST", cfg.MySQL.Host)
 	cfg.MySQL.Port = getEnvAsInt("MYSQL_PORT", cfg.MySQL.Port)

@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RAG - GopherAI Resume</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #f3f4f6; color: #111827; }
+    .topbar { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .back { border: 0; border-radius: 8px; padding: 8px 12px; background: #4b5563; color: #fff; cursor: pointer; text-decoration: none; font-size: 14px; display: inline-block; }
+    .back:hover { background: #374151; }
+    .container { display: grid; grid-template-columns: 260px 1fr; gap: 12px; max-width: 1000px; margin: 14px auto; padding: 0 12px; }
+    .panel { background: #fff; border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.06); padding: 16px; margin-bottom: 16px; }
+    .panel h3 { margin: 0 0 12px; font-size: 16px; }
+    label { display: block; margin: 8px 0 4px; font-size: 14px; color: #374151; }
+    input[type="text"], textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; }
+    textarea { min-height: 80px; resize: vertical; }
+    .btn { border: 0; border-radius: 8px; padding: 8px 14px; color: #fff; background: #2563eb; cursor: pointer; font-size: 14px; margin-top: 8px; }
+    .btn:hover { background: #1d4ed8; }
+    .btn.secondary { background: #4b5563; }
+    .btn.secondary:hover { background: #374151; }
+    .btn.danger { background: #dc2626; }
+    .btn.danger:hover { background: #b91c1c; }
+    .msg { margin-top: 8px; font-size: 13px; color: #6b7280; white-space: pre-wrap; }
+    .err { color: #dc2626; }
+    .chunks { margin-top: 12px; border-top: 1px solid #e5e7eb; padding-top: 12px; }
+    .chunk { background: #f9fafb; border-radius: 8px; padding: 10px; margin-bottom: 8px; font-size: 13px; white-space: pre-wrap; border: 1px solid #e5e7eb; }
+    .answer { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px; white-space: pre-wrap; margin-top: 12px; }
+    .small { font-size: 12px; color: #6b7280; }
+    .session-item { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; margin-bottom: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+    .session-item.active { border-color: #2563eb; background: #eff6ff; }
+    .session-item span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .doc-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
+    .doc-row span { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+    .sessions-list { max-height: 280px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <h2 style="margin:0;font-size:18px;">RAG</h2>
+    <a href="/app" class="back">Back to App</a>
+  </div>
+  <div class="container">
+    <aside class="panel" style="margin-bottom:0;">
+      <h3>RAG Sessions</h3>
+      <input type="text" id="newSessionTitle" placeholder="New session title" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #d1d5db;border-radius:8px;">
+      <button class="btn" id="createSessionBtn" type="button" style="margin-top:8px;width:100%;">Create Session</button>
+      <button class="btn secondary" id="deleteSessionBtn" type="button" style="margin-top:8px;width:100%;">Delete Active</button>
+      <button class="btn secondary" id="refreshSessionsBtn" type="button" style="margin-top:8px;width:100%;">Refresh</button>
+      <div class="sessions-list" id="sessionList"></div>
+      <div id="sessionMsg" class="msg small"></div>
+    </aside>
+    <div>
+      <div class="panel">
+        <h3>Add document (text)</h3>
+        <label for="docName">Name (optional)</label>
+        <input type="text" id="docName" placeholder="e.g. My notes">
+        <label for="docContent">Content</label>
+        <textarea id="docContent" placeholder="Paste or type text to index..."></textarea>
+        <button class="btn" id="addDocBtn" type="button">Add document</button>
+        <div id="addDocMsg" class="msg"></div>
+      </div>
+      <div class="panel">
+        <h3>Upload PDF</h3>
+        <label for="pdfName">Name (optional)</label>
+        <input type="text" id="pdfName" placeholder="e.g. Report 2024">
+        <input type="file" id="pdfFile" accept=".pdf,application/pdf">
+        <button class="btn" id="uploadPdfBtn" type="button" style="margin-top:8px;">Upload PDF</button>
+        <div id="uploadPdfMsg" class="msg"></div>
+      </div>
+      <div class="panel">
+        <h3>Documents <span id="activeSessionLabel" class="small"></span></h3>
+        <button class="btn secondary" id="refreshDocsBtn" type="button">Refresh</button>
+        <div id="docList"></div>
+        <div id="docListMsg" class="msg small"></div>
+      </div>
+      <div class="panel">
+        <h3>Ask</h3>
+        <label for="question">Question</label>
+        <input type="text" id="question" placeholder="Ask based on documents in current session">
+        <button class="btn" id="askBtn" type="button">Ask</button>
+        <div id="askMsg" class="msg"></div>
+        <div id="answerBox" class="answer" style="display: none;"></div>
+        <div id="chunksBox" class="chunks" style="display: none;">
+          <strong>Used chunks</strong>
+          <div id="chunksList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem("token");
+    if (!token) {
+      window.location.href = "/login";
+    }
+
+    function authHeaders() {
+      return {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + (localStorage.getItem("token") || "")
+      };
+    }
+
+    let activeSessionId = null;
+    let sessions = [];
+    const addDocMsg = document.getElementById("addDocMsg");
+    const uploadPdfMsg = document.getElementById("uploadPdfMsg");
+    const docList = document.getElementById("docList");
+    const docListMsg = document.getElementById("docListMsg");
+    const sessionList = document.getElementById("sessionList");
+    const sessionMsg = document.getElementById("sessionMsg");
+    const activeSessionLabel = document.getElementById("activeSessionLabel");
+    const askMsg = document.getElementById("askMsg");
+    const answerBox = document.getElementById("answerBox");
+    const chunksBox = document.getElementById("chunksBox");
+    const chunksList = document.getElementById("chunksList");
+
+    function setActiveSession(id) {
+      activeSessionId = id;
+      const s = sessions.find(x => x.id === id);
+      activeSessionLabel.textContent = id ? " (session #" + id + (s ? ": " + s.title : "") + ")" : " (all)";
+      renderSessions();
+      refreshDocList();
+    }
+
+    function renderSessions() {
+      sessionList.innerHTML = "";
+      for (const s of sessions) {
+        const el = document.createElement("div");
+        el.className = "session-item" + (s.id === activeSessionId ? " active" : "");
+        el.innerHTML = "<span>#" + s.id + " " + (s.title || "Untitled") + "</span>";
+        el.addEventListener("click", () => setActiveSession(s.id));
+        sessionList.appendChild(el);
+      }
+      if (!sessions.length) {
+        sessionList.innerHTML = "<div class=\"small\">No sessions. Create one.</div>";
+      }
+    }
+
+    async function loadSessions() {
+      sessionMsg.textContent = "";
+      try {
+        const res = await fetch("/api/v1/rag/sessions", { method: "GET", headers: authHeaders() });
+        const data = await res.json();
+        if (!res.ok || data.code !== 0) {
+          sessionMsg.textContent = data.message || "Failed to load sessions.";
+          sessions = [];
+        } else {
+          sessions = data.data || [];
+          if (activeSessionId !== null && !sessions.find(x => x.id === activeSessionId)) {
+            activeSessionId = sessions.length ? sessions[0].id : null;
+          }
+          if (activeSessionId === null && sessions.length) {
+            activeSessionId = sessions[0].id;
+          }
+        }
+        renderSessions();
+        activeSessionLabel.textContent = activeSessionId ? " (session #" + activeSessionId + ")" : " (all)";
+        const s = sessions.find(x => x.id === activeSessionId);
+        if (s) activeSessionLabel.textContent = " (session #" + s.id + ": " + s.title + ")";
+      } catch (e) {
+        sessionMsg.textContent = "Request error: " + e.message;
+        sessions = [];
+      }
+    }
+
+    document.getElementById("createSessionBtn").addEventListener("click", async () => {
+      const title = document.getElementById("newSessionTitle").value.trim() || "New RAG";
+      try {
+        const res = await fetch("/api/v1/rag/sessions", {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({ title })
+        });
+        const data = await res.json();
+        if (res.ok && data.code === 0) {
+          document.getElementById("newSessionTitle").value = "";
+          await loadSessions();
+          if (data.data && data.data.id) setActiveSession(data.data.id);
+        } else {
+          sessionMsg.textContent = data.message || "Create failed.";
+          sessionMsg.classList.add("err");
+        }
+      } catch (e) {
+        sessionMsg.textContent = "Request error: " + e.message;
+      }
+    });
+
+    document.getElementById("deleteSessionBtn").addEventListener("click", async () => {
+      if (!activeSessionId) {
+        sessionMsg.textContent = "Select a session to delete.";
+        return;
+      }
+      if (!confirm("Delete this session and all its documents?")) return;
+      try {
+        const res = await fetch("/api/v1/rag/sessions/" + activeSessionId, {
+          method: "DELETE",
+          headers: authHeaders()
+        });
+        const data = await res.json();
+        if (res.ok && data.code === 0) {
+          activeSessionId = null;
+          await loadSessions();
+        } else {
+          sessionMsg.textContent = data.message || "Delete failed.";
+        }
+      } catch (e) {
+        sessionMsg.textContent = "Request error: " + e.message;
+      }
+    });
+
+    document.getElementById("refreshSessionsBtn").addEventListener("click", loadSessions);
+
+    document.getElementById("uploadPdfBtn").addEventListener("click", async () => {
+      const name = document.getElementById("pdfName").value.trim();
+      const fileInput = document.getElementById("pdfFile");
+      uploadPdfMsg.textContent = "";
+      uploadPdfMsg.classList.remove("err");
+      if (!fileInput.files || fileInput.files.length === 0) {
+        uploadPdfMsg.textContent = "Select a PDF file.";
+        uploadPdfMsg.classList.add("err");
+        return;
+      }
+      const file = fileInput.files[0];
+      if (file.size > 10 * 1024 * 1024) {
+        uploadPdfMsg.textContent = "File too large (max 10MB).";
+        uploadPdfMsg.classList.add("err");
+        return;
+      }
+      const form = new FormData();
+      form.append("file", file);
+      if (name) form.append("name", name);
+      if (activeSessionId) form.append("session_id", String(activeSessionId));
+      try {
+        uploadPdfMsg.textContent = "Uploading...";
+        const res = await fetch("/api/v1/rag/documents/upload", {
+          method: "POST",
+          headers: { "Authorization": "Bearer " + (localStorage.getItem("token") || "") },
+          body: form
+        });
+        const data = await res.json();
+        if (res.ok && data.code === 0) {
+          uploadPdfMsg.textContent = "PDF uploaded. Chunks: " + (data.data.chunk_count || 0);
+          fileInput.value = "";
+          document.getElementById("pdfName").value = "";
+          refreshDocList();
+        } else {
+          uploadPdfMsg.textContent = data.message || "Upload failed.";
+          uploadPdfMsg.classList.add("err");
+        }
+      } catch (e) {
+        uploadPdfMsg.textContent = "Request error: " + e.message;
+        uploadPdfMsg.classList.add("err");
+      }
+    });
+
+    document.getElementById("addDocBtn").addEventListener("click", async () => {
+      const name = document.getElementById("docName").value.trim();
+      const content = document.getElementById("docContent").value.trim();
+      addDocMsg.textContent = "";
+      addDocMsg.classList.remove("err");
+      if (!content) {
+        addDocMsg.textContent = "Content is required.";
+        addDocMsg.classList.add("err");
+        return;
+      }
+      const body = { name: name || "Untitled", content };
+      if (activeSessionId) body.session_id = activeSessionId;
+      try {
+        const res = await fetch("/api/v1/rag/documents", {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (res.ok && data.code === 0) {
+          addDocMsg.textContent = "Document added. Chunks: " + (data.data.chunk_count || 0);
+          document.getElementById("docContent").value = "";
+          refreshDocList();
+        } else {
+          addDocMsg.textContent = data.message || "Add document failed.";
+          addDocMsg.classList.add("err");
+        }
+      } catch (e) {
+        addDocMsg.textContent = "Request error: " + e.message;
+        addDocMsg.classList.add("err");
+      }
+    });
+
+    async function refreshDocList() {
+      docListMsg.textContent = "";
+      const url = activeSessionId
+        ? "/api/v1/rag/documents?session_id=" + encodeURIComponent(activeSessionId)
+        : "/api/v1/rag/documents";
+      try {
+        const res = await fetch(url, { method: "GET", headers: authHeaders() });
+        const data = await res.json();
+        if (!res.ok || data.code !== 0) {
+          docListMsg.textContent = data.message || "Failed to load documents.";
+          docList.innerHTML = "";
+          return;
+        }
+        const docs = data.data || [];
+        docList.innerHTML = docs.length ? docs.map(d => {
+          return '<div class="doc-row" data-id="' + d.id + '"><span>#' + d.id + ' ' + escapeHtml(d.name || "Untitled") + '</span><button type="button" class="btn danger" style="margin:0;padding:4px 8px;font-size:12px;">Delete</button></div>';
+        }).join("") : "<div class=\"small\">No documents in this session.</div>";
+        docList.querySelectorAll(".doc-row button").forEach(btn => {
+          btn.addEventListener("click", async () => {
+            const id = btn.closest(".doc-row").getAttribute("data-id");
+            if (!confirm("Delete this document?")) return;
+            try {
+              const r = await fetch("/api/v1/rag/documents/" + id, { method: "DELETE", headers: authHeaders() });
+              const d = await r.json();
+              if (r.ok && d.code === 0) refreshDocList();
+              else docListMsg.textContent = d.message || "Delete failed.";
+            } catch (e) {
+              docListMsg.textContent = "Request error: " + e.message;
+            }
+          });
+        });
+      } catch (e) {
+        docListMsg.textContent = "Request error: " + e.message;
+        docList.innerHTML = "";
+      }
+    }
+
+    function escapeHtml(s) {
+      const div = document.createElement("div");
+      div.textContent = s;
+      return div.innerHTML;
+    }
+
+    document.getElementById("refreshDocsBtn").addEventListener("click", refreshDocList);
+
+    document.getElementById("askBtn").addEventListener("click", async () => {
+      const question = document.getElementById("question").value.trim();
+      askMsg.textContent = "";
+      askMsg.classList.remove("err");
+      answerBox.style.display = "none";
+      chunksBox.style.display = "none";
+      if (!question) {
+        askMsg.textContent = "Enter a question.";
+        askMsg.classList.add("err");
+        return;
+      }
+      const body = { question };
+      if (activeSessionId) body.session_id = activeSessionId;
+      try {
+        askMsg.textContent = "Asking...";
+        const res = await fetch("/api/v1/rag/ask", {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (res.ok && data.code === 0) {
+          askMsg.textContent = "";
+          answerBox.textContent = data.data.answer || "";
+          answerBox.style.display = "block";
+          const chunks = data.data.chunks || [];
+          chunksList.innerHTML = chunks.map(c => "<div class=\"chunk\">" + escapeHtml(c.content) + "</div>").join("");
+          chunksBox.style.display = chunks.length ? "block" : "none";
+        } else {
+          askMsg.textContent = data.message || "Ask failed.";
+          askMsg.classList.add("err");
+        }
+      } catch (e) {
+        askMsg.textContent = "Request error: " + e.message;
+        askMsg.classList.add("err");
+      }
+    });
+
+    loadSessions();
+  </script>
+</body>
+</html>

@@ -24,7 +24,10 @@ func NewRouter(app *bootstrap.App) *gin.Engine {
 	router.StaticFile("/", "web/index.html")
 	router.StaticFile("/login", "web/login.html")
 	router.StaticFile("/register", "web/register.html")
+	router.StaticFile("/app", "web/app.html")
 	router.StaticFile("/chat", "web/chat.html")
+	router.StaticFile("/rag", "web/rag.html")
+	router.StaticFile("/vision", "web/vision.html")
 	router.GET("/healthz", healthHandler.Check)
 
 	userRepo := repository.NewUserRepository(app.MySQL)
@@ -59,6 +62,29 @@ func NewRouter(app *bootstrap.App) *gin.Engine {
 	authHandler := handler.NewAuthHandler(authService)
 	chatHandler := handler.NewChatHandler(chatService)
 
+	embConfig := ai.EmbeddingConfig{
+		BaseURL: app.Config.LLM.BaseURL,
+		APIKey:  app.Config.LLM.APIKey,
+		Model:   app.Config.LLM.EmbeddingModel,
+	}
+	chatConfig := ai.ChatConfig{
+		BaseURL: app.Config.LLM.BaseURL,
+		APIKey:  app.Config.LLM.APIKey,
+		Model:   app.Config.LLM.Model,
+	}
+	ragSessionRepo := repository.NewRAGSessionRepository(app.MySQL)
+	ragDocRepo := repository.NewRAGDocumentRepository(app.MySQL)
+	ragChunkRepo := repository.NewRAGChunkRepository(app.MySQL)
+	ragService := appsvc.NewRAGService(
+		ragSessionRepo,
+		ragDocRepo,
+		ragChunkRepo,
+		ai.NewOpenAICompatibleClient(),
+		embConfig,
+		chatConfig,
+	)
+	ragHandler := handler.NewRAGHandler(ragService)
+
 	v1 := router.Group("/api/v1")
 	authGroup := v1.Group("/auth")
 	authGroup.POST("/register", authHandler.Register)
@@ -73,6 +99,17 @@ func NewRouter(app *bootstrap.App) *gin.Engine {
 	chatGroup.POST("/messages", chatHandler.SendMessage)
 	chatGroup.POST("/stream", chatHandler.StreamMessage)
 	chatGroup.GET("/history", chatHandler.GetHistory)
+
+	ragGroup := v1.Group("/rag")
+	ragGroup.Use(middleware.AuthJWT(app.Config.Auth.JWTSecret))
+	ragGroup.POST("/sessions", ragHandler.CreateSession)
+	ragGroup.GET("/sessions", ragHandler.ListSessions)
+	ragGroup.DELETE("/sessions/:id", ragHandler.DeleteSession)
+	ragGroup.POST("/documents", ragHandler.CreateDocument)
+	ragGroup.POST("/documents/upload", ragHandler.UploadPDF)
+	ragGroup.GET("/documents", ragHandler.ListDocuments)
+	ragGroup.DELETE("/documents/:id", ragHandler.DeleteDocument)
+	ragGroup.POST("/ask", ragHandler.Ask)
 
 	return router
 }

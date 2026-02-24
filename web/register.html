@@ -62,9 +62,9 @@
           return;
         }
         localStorage.setItem("token", data.data.token);
-        setMessage("Register success. Redirecting to /chat ...");
+        setMessage("Register success. Redirecting to app ...");
         setTimeout(() => {
-          window.location.href = "/chat";
+          window.location.href = "/app";
         }, 600);
       } catch (err) {
         setMessage("Request error: " + err.message);

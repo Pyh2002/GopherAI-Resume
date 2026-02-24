@@ -14,6 +14,7 @@ base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 api_key = "sk-f35af11a2d4a4e819e1137bff10e36d3"
 model = "qwen3-max"
 max_context_message = 20
+embedding_model = "text-embedding-v3"
 
 [mysql]
 host = "127.0.0.1"
