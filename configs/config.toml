@@ -34,3 +34,10 @@ history_dirty_ttl_seconds = 5
 [rabbitmq]
 url = "amqp://guest:guest@127.0.0.1:5672/"
 message_persist_queue = "chat.message.persist"
+
+[vision]
+model_path = "assets/mobilenetv2-7.onnx"
+labels_path = "assets/labels.txt"
+top_k = 5
+# Optional: path to libonnxruntime.so (Linux) or onnxruntime.dll (Windows). If empty, default search is used.
+# onnx_shared_lib_path = ""

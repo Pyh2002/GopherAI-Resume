@@ -15,6 +15,7 @@ type Config struct {
 	MySQL    MySQLConfig    `toml:"mysql"`
 	Redis    RedisConfig    `toml:"redis"`
 	RabbitMQ RabbitMQConfig `toml:"rabbitmq"`
+	Vision   VisionConfig   `toml:"vision"`
 }
 
 type AppConfig struct {
@@ -58,6 +59,13 @@ type LLMConfig struct {
 	Model             string `toml:"model"`
 	MaxContextMessage int    `toml:"max_context_message"`
 	EmbeddingModel    string `toml:"embedding_model"`
+}
+
+type VisionConfig struct {
+	ModelPath         string `toml:"model_path"`
+	LabelsPath        string `toml:"labels_path"`
+	TopK              int    `toml:"top_k"`
+	ONNXSharedLibPath string `toml:"onnx_shared_lib_path"`
 }
 
 func Load() (*Config, error) {
@@ -128,6 +136,12 @@ func defaultConfig() *Config {
 			URL:                 "amqp://guest:guest@127.0.0.1:5672/",
 			MessagePersistQueue: "chat.message.persist",
 		},
+		Vision: VisionConfig{
+			ModelPath:         "assets/mobilenetv2-7.onnx",
+			LabelsPath:        "assets/labels.txt",
+			TopK:              5,
+			ONNXSharedLibPath: "", // use default or set via VISION_ONNX_LIB
+		},
 	}
 }
 
@@ -160,6 +174,11 @@ func overrideByEnv(cfg *Config) {
 
 	cfg.RabbitMQ.URL = getEnv("RABBITMQ_URL", cfg.RabbitMQ.URL)
 	cfg.RabbitMQ.MessagePersistQueue = getEnv("RABBITMQ_MESSAGE_PERSIST_QUEUE", cfg.RabbitMQ.MessagePersistQueue)
+
+	cfg.Vision.ModelPath = getEnv("VISION_MODEL_PATH", cfg.Vision.ModelPath)
+	cfg.Vision.LabelsPath = getEnv("VISION_LABELS_PATH", cfg.Vision.LabelsPath)
+	cfg.Vision.TopK = getEnvAsInt("VISION_TOP_K", cfg.Vision.TopK)
+	cfg.Vision.ONNXSharedLibPath = getEnv("VISION_ONNX_LIB", cfg.Vision.ONNXSharedLibPath)
 }
 
 func getEnv(key, fallback string) string {

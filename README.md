@@ -22,3 +22,33 @@ Step 1 bootstrap for backend engineering baseline.
    - `make run`
 5. Verify:
    - `curl http://127.0.0.1:8080/healthz`
+
+## Image recognition (optional)
+
+The vision feature uses ONNX Runtime to run the MobileNetV2 model. The Go binding requires the **native ONNX Runtime shared library** on your machine (separate from the model file in `assets/`).
+
+### Quick setup (Linux / WSL)
+
+From the project root:
+
+```bash
+make install-onnx-runtime
+```
+
+Then set the printed `VISION_ONNX_LIB` in your environment and run the app (e.g. `export VISION_ONNX_LIB=...` then `make run`), or set `configs/config.toml` under `[vision]` → `onnx_shared_lib_path`.
+
+### Manual setup (Linux)
+
+1. **Download** the CPU build for your arch, e.g. x64:
+   - https://github.com/microsoft/onnxruntime/releases/download/v1.24.1/onnxruntime-linux-x64-1.24.1.tgz
+   - For ARM64: `onnxruntime-linux-aarch64-1.24.1.tgz`
+2. **Extract** and point the app at the `.so`:
+   ```bash
+   mkdir -p bin/onnxruntime
+   tar -xzf onnxruntime-linux-x64-1.24.1.tgz -C bin/onnxruntime
+   export VISION_ONNX_LIB="$(pwd)/bin/onnxruntime/onnxruntime-linux-x64-1.24.1/lib/libonnxruntime.so.1.24.1"
+   ```
+   (Adjust the path if the tarball layout differs; use `find bin/onnxruntime -name 'libonnxruntime.so*'` to locate the file.)
+3. **Run** the app with the same env, or set `onnx_shared_lib_path` in `configs/config.toml` under `[vision]`.
+
+Model and labels are read from `assets/` by default: `assets/mobilenetv2-7.onnx` and `assets/labels.txt`.

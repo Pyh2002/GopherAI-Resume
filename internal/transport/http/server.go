@@ -13,6 +13,7 @@ import (
 	"gopherai-resume/internal/repository"
 	"gopherai-resume/internal/transport/http/handler"
 	"gopherai-resume/internal/transport/http/middleware"
+	"gopherai-resume/internal/vision"
 )
 
 func NewRouter(app *bootstrap.App) *gin.Engine {
@@ -85,6 +86,14 @@ func NewRouter(app *bootstrap.App) *gin.Engine {
 	)
 	ragHandler := handler.NewRAGHandler(ragService)
 
+	visionClassifier := vision.NewClassifier(
+		app.Config.Vision.ModelPath,
+		app.Config.Vision.LabelsPath,
+		app.Config.Vision.ONNXSharedLibPath,
+		app.Config.Vision.TopK,
+	)
+	visionHandler := handler.NewVisionHandler(visionClassifier)
+
 	v1 := router.Group("/api/v1")
 	authGroup := v1.Group("/auth")
 	authGroup.POST("/register", authHandler.Register)
@@ -110,6 +119,10 @@ func NewRouter(app *bootstrap.App) *gin.Engine {
 	ragGroup.GET("/documents", ragHandler.ListDocuments)
 	ragGroup.DELETE("/documents/:id", ragHandler.DeleteDocument)
 	ragGroup.POST("/ask", ragHandler.Ask)
+
+	visionGroup := v1.Group("/vision")
+	visionGroup.Use(middleware.AuthJWT(app.Config.Auth.JWTSecret))
+	visionGroup.POST("/classify", visionHandler.Classify)
 
 	return router
 }
